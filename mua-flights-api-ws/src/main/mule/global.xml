@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns:american-flights-sapi="http://www.mulesoft.org/schema/mule/american-flights-sapi" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/american-flights-sapi http://www.mulesoft.org/schema/mule/american-flights-sapi/current/mule-american-flights-sapi.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+	<http:listener-config name="mua-flights-api-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="${http.port}" />
+    </http:listener-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="b552605a-df40-4738-8e01-b51da909261b" file="config.yaml" />
+	<american-flights-sapi:config name="AmericanFlightsSAPIConfig" doc:name="American Flights SAPI Config" doc:id="dba6edd4-a012-44a6-a25d-6f4031089f7e" property_host="${american.host}" property_port="${american.port}" property_basePath="${american.basepath}" property_protocol="${american.protocol}" />
+	<http:request-config name="UnitedHTTPRequestConfiguration" doc:name="HTTP Request configuration" doc:id="03937040-be7c-4e57-8955-f9a73c998464" basePath="${united.basepath}" >
+		<http:request-connection protocol="${united.protocol}" host="${united.host}" port="${united.port}" />
+	</http:request-config>
+	<wsc:config name="DeltaWebServiceConsumerConfig" doc:name="Web Service Consumer Config" doc:id="408bfede-29fb-49b7-b1c7-95fae65b0775" >
+		<wsc:connection wsdlLocation="${delta.wsdl}" service="${delta.service}" port="${delta.port}" >
+			<wsc:web-service-security actor="http://schemas.xmlsoap.org/soap/actor/next" />
+		</wsc:connection>
+	</wsc:config>
+	<configuration doc:name="Configuration" doc:id="806a76ca-1032-4472-8423-e73a1d8da69d" defaultErrorHandler-ref="GlobalErrorHandler" />
+	<error-handler name="GlobalErrorHandler" doc:id="88f95ec4-5948-457d-88cf-b687a66cfaa6" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="69a034be-52ff-40f5-b406-29698ce5b493" type="ANY">
+			<logger level="INFO" doc:name="Logger" doc:id="4fc8353b-71d0-4ce6-b58e-a0c6e2b86148" />
+		</on-error-propagate>
+	</error-handler>
+
+</mule>

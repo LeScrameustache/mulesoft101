@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	<flow name="SyncDBAccounts" doc:id="228ff056-5f2b-4cdc-9227-fd7e23badafa" initialState="stopped">
+		<scheduler doc:name="Scheduler20s" doc:id="1bd960da-30d8-4bdf-a848-5b4bc661c71a" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="20000"/>
+			</scheduling-strategy>
+		</scheduler>
+		<os:retrieve doc:name="RetrieveWaterMark" doc:id="58ffa7cd-1606-4e2d-8be9-f263c3d78b68" key="lastAccountID" target="lastAccountID">
+			<os:default-value ><![CDATA[70]]></os:default-value>
+		</os:retrieve>
+		<db:select doc:name="Select" doc:id="2d398138-3cfc-45c1-b1d6-fcd9c093dccf" config-ref="MySQLDatabaseConfig">
+			<db:sql ><![CDATA[SELECT * FROM accounts WHERE accountID > :lastAccountID]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	lastAccountID: vars.lastAccountID
+}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="1e9dc8ea-8deb-47e3-97c4-8ae87ef2b3dd" >
+			<when expression="#[!isEmpty(payload)]">
+				<os:store doc:name="Update lastAccountID" doc:id="a0335267-bb32-4fe0-aa83-e11b44ff5ea3" key="lastAccountID">
+					<os:value ><![CDATA[#[max(payload.*accountID)]]]></os:value>
+				</os:store>
+				<logger level="INFO" doc:name="Process" doc:id="a3f7e109-d2e7-49a5-be69-dbad869c47fb" message="#[output application/json --- payload]" />
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="No data" doc:id="bf873ab1-e821-4b61-9a7e-5313398997ce" message='#["\nNo data ..."]'/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="accountsCSV" doc:id="1409575f-2ae6-41a7-85c9-d66c9ceee671" >
+		<file:listener doc:name="On New File" doc:id="7e06344d-e87c-4cfa-a034-ae71aa551513" config-ref="File_Config" directory="input" recursive="false" moveToDirectory="output">
+			<scheduling-strategy >
+				<fixed-frequency frequency="10" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+			<file:matcher filenamePattern="*.csv" timeUnit="SECONDS" symLinks="REQUIRE"/>
+		</file:listener>
+		<ee:transform doc:name="Transform Message" doc:id="ef90ceb9-0c8d-4cd8-ab5f-71c10bcfc555" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="5e0eec88-3912-4a04-b3ac-a6acfd374e62" />
+		<set-variable value="#[sizeOf(payload)]" doc:name="size" doc:id="87084c6d-8043-476c-abaf-a1e7fbf773fa" variableName="size"/>
+		<batch:job jobName="accountsBatch_Job" doc:id="96a8dadd-d8c4-4f0d-a54e-676aa07aa07f" >
+			<batch:process-records >
+				<batch:step name="Batch_Step_0" doc:id="759f333b-844f-47e5-831e-13e3fec1dee0" >
+					<set-variable value="#[payload.name]" doc:name="name" doc:id="149ca18d-ba0c-4cfc-b8a4-c56472b45f97" variableName="name"/>
+					<logger level="INFO" doc:name="Logger" doc:id="e065c51f-97a1-465d-81ad-2520222fd4ca" />
+				</batch:step>
+				<batch:step name="Batch_Step_1" doc:id="8332d582-75e8-4039-988d-69359f6e53f1" >
+					<logger level="INFO" doc:name="Logger1" doc:id="0ac74b00-d9ea-47a7-a879-2e3321a547fc" message="#[output application/json --- payload]" />
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="241ce158-24f3-4a18-ad3a-99f20014c8e9" message="#[output application/json --- payload]" />
+			</batch:on-complete>
+		</batch:job>
+		<logger level="INFO" doc:name="Logger" doc:id="87e17f2d-de83-47c3-b1dd-f2fb2024673c" message="#[output application/json --- payload]"/>
+	</flow>
+</mule>
